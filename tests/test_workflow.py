@@ -522,3 +522,26 @@ def test_missing_source_returns_outcome_field(client):
     response = client.post(f"/api/papers/{pid}/approve", json=body)
     assert response.status_code == 422
     assert response.json()["detail"][0]["loc"] == ["body", "outcomes", 0, "data", "quote"]
+
+
+def test_last_decision_matches_latest_review_not_draft(client):
+    pid, body = prepare(client)
+    def listed():
+        return next(p for p in client.get('/api/papers').json() if p['id'] == pid)
+    assert listed()['last_decision_reviewer'] == 'Test runner'
+    body['reviewer'] = 'Second reviewer'
+    response = client.post(f'/api/papers/{pid}/approve', json=body)
+    assert response.status_code == 200, response.text
+    event = next(e for e in response.json()['events'] if e['action'] == 'Extraction reviewed')
+    assert listed()['last_decision_reviewer'] == event['reviewer']
+    assert listed()['last_decision_at'] == event['created']
+    body['version'] = response.json()['version']
+    body['reviewer'] = 'Draft editor'
+    draft = client.post(f'/api/papers/{pid}/draft', json=body)
+    assert draft.status_code == 200
+    assert listed()['last_decision_reviewer'] == 'Second reviewer'
+    response = client.post(f'/api/papers/{pid}/decision', json=dict(
+        decision='Needs clarification', reason='Check eligibility again', reviewer='Third reviewer',
+        treatment_class='Albumin', version=draft.json()['version']))
+    assert response.status_code == 200, response.text
+    assert listed()['last_decision_reviewer'] == 'Third reviewer'

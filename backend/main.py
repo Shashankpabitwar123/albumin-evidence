@@ -184,6 +184,15 @@ def papers():
                 (p["id"],),
             ).fetchall()
             p["result_counts"] = {c["status"]: c["n"] for c in counts}
+            # Read the same decision events used by the trail, including older reviews.
+            latest = db.execute(
+                "SELECT reviewer,created FROM audit WHERE entity=? "
+                "AND action IN ('Screening decision','Extraction reviewed') "
+                "ORDER BY id DESC LIMIT 1",
+                (p["id"],),
+            ).fetchone()
+            p["last_decision_reviewer"] = latest["reviewer"] if latest else p["reviewer"]
+            p["last_decision_at"] = latest["created"] if latest else p["reviewed_at"]
             result.append(p)
         return result
 

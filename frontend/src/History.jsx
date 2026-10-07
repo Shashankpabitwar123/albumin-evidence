@@ -105,9 +105,9 @@ export default function History({ onOpen, refresh }) {
                     </small>
                   </td>
                   <td>
-                    {p.reviewer || "Not reviewed"}
+                    {p.last_decision_reviewer || "Not reviewed"}
                     <br />
-                    <small>{date(p.reviewed_at)}</small>
+                    <small>{date(p.last_decision_at)}</small>
                   </td>
                   <td>
                     <div className="row-actions">
