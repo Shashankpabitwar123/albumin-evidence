@@ -527,6 +527,20 @@ def approve(pid: str, body: Approval):
                     )
             if result.status == "withheld" and not result.note.strip():
                 raise HTTPException(422, "Give a reason for withholding the result.")
+        for index, result in enumerate(body.outcomes):
+            prior = db.execute(
+                "SELECT status FROM outcomes WHERE id=?", (pid + ":" + str(index),)
+            ).fetchone()
+            if (
+                prior
+                and prior["status"] == "superseded"
+                and result.status == "approved"
+                and not result.supersedes_id
+            ):
+                raise HTTPException(
+                    409,
+                    "This result was superseded by a correction. Review the current result and explicitly select a replacement before approving it again.",
+                )
         # A correction replaces an explicitly selected result, never another study.
         targets = [r.supersedes_id for r in body.outcomes if r.supersedes_id]
         if len(targets) != len(set(targets)):
@@ -548,6 +562,10 @@ def approve(pid: str, body: Approval):
                         422,
                         "Replacing a result requires an approved result from the same study, approval of this correction, and a review note.",
                     )
+                db.execute(
+                    "UPDATE papers SET version=version+1 WHERE id=?",
+                    (old_result["paper_id"],),
+                )
                 audit(
                     db,
                     old_result["paper_id"],
