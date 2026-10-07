@@ -1,6 +1,6 @@
 # Albumin Evidence
 
-A password-protected workspace for maintaining evidence on scheduled outpatient albumin in adults with cirrhosis and ascites. It imports the supplied fictional workbook, screens new searchable research PDFs, proposes selected extraction, and publishes only reviewer-approved results.
+A password-protected workspace for maintaining evidence on scheduled outpatient albumin in adults with cirrhosis and ascites. It imports the supplied fictional workbook, screens new searchable research PDFs, proposes selected extraction, and distinguishes approved results from pending or withheld records.
 
 ## Run locally
 
@@ -17,14 +17,20 @@ npm run build --prefix frontend
 uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open http://127.0.0.1:8000. The database and uploaded PDFs are created in `runtime/`. An empty database imports the workbook once. Changing the workbook later does not silently overwrite existing records. Do not commit runtime files or credentials. `ENV_FILE` can point to a separate local credential file.
+Open http://127.0.0.1:8000. The database and uploaded PDFs are created in `runtime/`. An empty database imports the workbook once. The four real PDFs are not bundled or preloaded in a fresh installation: upload Rahul’s original attachments through the same review workflow. An OpenAI key is needed for new analysis; workbook browsing works without one. Changing the workbook later does not silently overwrite existing records. Do not commit runtime files or credentials. `ENV_FILE` can point to a separate local credential file.
+
+The in-app **Help** is the reviewer guide. This README also covers setup, architecture and operational limits. See [submission verification](docs/VERIFICATION.md) for the requirement checklist and testing boundaries.
 
 ## Review workflow
 
 1. **Evidence Library:** use the fictional/real source selector and study, outcome, and follow-up filters. Expand studies to see results, source excerpts, original extraction, and unresolved issues.
 2. **Review a Paper:** upload a searchable PDF, then screen it. Check the AI recommendation against each criterion and the original PDF. Record your decision, reason, name, and treatment classification.
-3. For an included study, prepare extraction. Correct study characteristics and up to two results. Check each measure, value, denominator, time window, source quote, and PDF page. Keep unresolved results pending or withhold them. Save a draft or confirm the review.
-4. **Review History:** resume pending or excluded papers, inspect reviewer decisions and AI versions, and reopen results. Study inclusion does not approve any result automatically.
+3. An outcome is something measured by a study, such as mortality or hospitalization. For an included study, prepare extraction. Correct study characteristics and up to two results. Check each measure, value, denominator, time window, source quote, and PDF page. Keep unresolved results pending or withhold them. Save a draft or confirm the review.
+4. **Review History:** resume pending or excluded papers, inspect reviewer decisions and AI versions, and reopen results. Last decision reflects the latest screening or extraction review, not a draft save. Study inclusion does not approve any result automatically.
+
+The main Review a Paper tab opens a fresh upload form; use History → Open review for a saved paper. Save a draft before leaving unfinished edits. Validation errors scroll into view and link to the affected field.
+
+Review data issues shows results that are not fully approved or have recorded uncertainty. Approval does not remove a source limitation; a routine source-verification note alone is not an issue. Show all results removes this extra filter. Library totals describe the selected evidence source; filters control the rows below them.
 
 An identical file reopens its saved review. DOI/trial matches flag possible related reports; a reviewer chooses linkage. Linked corrections can explicitly supersede an earlier approved result. Original values remain in the audit history. Different copies with missing or inconsistent identifiers need manual identity review; there is no claim of perfect study deduplication.
 
@@ -74,6 +80,7 @@ Back up the database using SQLite's backup API (not by copying a live database f
 
 ```sh
 python -m pytest -q
+node --test frontend/src/*.test.js
 npm run build --prefix frontend
 ```
 
@@ -87,7 +94,9 @@ Workflow tests use temporary storage and make no paid API calls. They cover raw 
 - `backend/workbook.py`: original workbook import and documented QC.
 - `backend/db.py`: schema, transactions, audit history.
 - `backend/auth.py`: shared-password login, session cookies, rate limit.
-- `frontend/src/`: Library, Review, History, shared controls, styling.
+- `frontend/src/`: Library, Review, History and Help components, shared controls, styling.
+- `backend/workspace.py`: shared reset and portable backup export.
+- `frontend/src/validation.js`, `sourceMatch.js`, `resultIssues.js`: small tested UI rules.
 - `data/evidence.xlsx`: supplied fictional evidence workbook.
 - `tests/`: isolated automated verification.
 
@@ -97,4 +106,4 @@ The repository is intended for private assignment handoff. Supplied publications
 
 Help → Start fresh → Reset workspace opens a confirmation. Reset affects every visitor in the shared workspace. Type `RESET` to confirm. It restores the four supplied PDFs to Pending review, keeps their cached AI screening and original extraction suggestions, removes all reviewer decisions/drafts/results and extra uploads, and rebuilds each paper’s history with Uploaded and AI screening completed entries. The fictional workbook remains unchanged. A separate workspace reset event is retained for operations.
 
-Download the ZIP backup before resetting to keep PDFs and JSON records for offline inspection or owner-assisted recovery. There is no in-app restore. Credentials and sessions are excluded from the backup. Reset is blocked during analysis or if an original file/screening is missing. Existing review versions are incremented so stale tabs cannot overwrite a reset. Refresh other open windows afterward. API spending history is retained. Cached screening and extraction are reused without model calls after reset. A paper that has never had extraction prepared still needs its first extraction; additional uploads also require analysis.
+Download the ZIP backup before resetting to keep PDFs and JSON records for offline inspection or owner-assisted recovery. There is no in-app restore. Credentials and sessions are excluded from the backup. Reset is blocked during analysis or if an original file/screening is missing. On a fresh installation, upload and screen all four original attachments before using reset. Existing review versions are incremented so stale tabs cannot overwrite a reset. Refresh other open windows afterward. API spending history is retained. Cached screening and extraction are reused without model calls after reset. A paper that has never had extraction prepared still needs its first extraction; additional uploads also require analysis.

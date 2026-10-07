@@ -454,9 +454,17 @@ def decide(pid: str, body: Decision):
         # Changing screening invalidates earlier approvals, which remain in audit.
         if p["decision"] != body.decision:
             db.execute(
-                "UPDATE outcomes SET status='pending',note='Screening decision changed; result approval needs review.' WHERE paper_id=?",
+                "UPDATE outcomes SET status='pending',note='Screening decision changed; result approval needs review.' WHERE paper_id=? AND status<>'superseded'",
                 (pid,),
             )
+            # Preserve edited fields, but never carry old approval choices into
+            # a newly screened review. Superseded database rows stay protected.
+            if p["draft"]:
+                draft = json.loads(p["draft"])
+                for result in draft.get("outcomes", []):
+                    result["status"] = "pending"
+                    result["supersedes_id"] = None
+                db.execute("UPDATE papers SET draft=? WHERE id=?", (encode(draft), pid))
         db.execute(
             "UPDATE papers SET decision=?,reason=?,reviewer=?,reviewed_at=?,study_id=?,treatment_class=?,version=version+1 WHERE id=?",
             (
@@ -628,9 +636,14 @@ def approve(pid: str, body: Approval):
             "UPDATE studies SET characteristics=? WHERE id=?",
             (encode(chars), p["study_id"]),
         )
+        # Replacement is a one-time action, retained in the audit above.
+        # Clear it from the draft so saving a reopened correction is safe.
+        saved_draft = body.model_dump()
+        for result in saved_draft["outcomes"]:
+            result["supersedes_id"] = None
         db.execute(
             "UPDATE papers SET draft=?,version=version+1 WHERE id=?",
-            (encode(body.model_dump()), pid),
+            (encode(saved_draft), pid),
         )
     return paper(pid)
 

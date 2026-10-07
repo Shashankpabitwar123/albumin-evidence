@@ -8,11 +8,11 @@ import "@fontsource/libre-franklin/600.css";
 import "@fontsource/libre-franklin/700.css";
 import "./styles.css";
 import { api, post } from "./api";
-import { Busy, Notice, Field, Modal } from "./components";
+import { Busy, Notice, Field } from "./components";
 import Library from "./Library";
 import Review from "./Review";
 import History from "./History";
-import ResetWorkspace from "./ResetWorkspace";
+import Help from "./Help";
 
 class ErrorBoundary extends React.Component {
   state = { failed: false };
@@ -188,51 +188,9 @@ function App() {
         )}
       </main>
       {help && (
-        <Modal title="Review guidance" onClose={() => setHelp(false)}>
-          <h3>Review scope</h3>
-          <p className="preserve">{session.criteria}</p>
-          <h3>How a paper becomes evidence</h3>
-          <p>
-            Upload a searchable PDF. AI suggests eligibility with source
-            passages. You confirm or change the decision, correct the proposed
-            study details, and approve each result separately.
-          </p>
-          <h3>What is automated</h3>
-          <p>
-            PDF text reading, AI screening and extraction suggestions,
-            source-quote matching, duplicate-file detection and library updates.
-            Suggestions can be wrong: the reviewer makes the final decisions.
-          </p>
-          <h3>What you review</h3>
-          <p>
-            Eligibility, treatment attribution, study characteristics, outcome
-            values and their sources. An entered reviewer name records
-            responsibility but is not an independently verified account.
-          </p>
-          <h3>Missing or uncertain information</h3>
-          <p>
-            Blank means not captured, NR means not reported, and 0 means an
-            explicit zero. Keep unresolved results pending or withhold them with
-            a reason. Counts, rates, survival estimates and cumulative incidence
-            are different measures.
-          </p>
-          <h3>Sources and limits</h3>
-          <p>
-            Workbook records and excerpts are fictional. Uploaded publications
-            are real sources; they do not validate fictional results. The
-            current reader supports searchable PDFs up to 12 MB and 40 pages.
-            Scanned documents require OCR before upload. Graph-only values are
-            not automatically digitized.
-          </p>
-          <h3>Related publications</h3>
-          <p>
-            Identical uploads reopen the saved paper. Matching DOI or trial
-            identifiers flag possible related reports. A reviewer confirms study
-            linkage; uncertain matches must not be merged automatically.
-            Corrections should retain previous values and an explanation in the
-            decision trail.
-          </p>
-          <ResetWorkspace
+        <Help
+            criteria={session.criteria}
+            onClose={() => setHelp(false)}
             onReset={() => {
               setHelp(false);
               setPaperId(null);
@@ -241,7 +199,6 @@ function App() {
               setResetNotice(true);
             }}
           />
-        </Modal>
       )}
     </>
   );

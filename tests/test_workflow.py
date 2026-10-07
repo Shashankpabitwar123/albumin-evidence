@@ -311,6 +311,30 @@ def test_related_correction_supersedes_previous_result(client):
     body["version"] = client.get("/api/papers/" + pid).json()["version"]
     assert client.post(f"/api/papers/{pid}/approve", json=body).status_code == 409
 
+    # Reopening a correction must not replay its completed replacement action.
+    reopened = client.get("/api/papers/" + second_id).json()
+    saved = reopened["draft"]
+    saved["version"] = reopened["version"]
+    assert saved["outcomes"][0]["supersedes_id"] is None
+    assert client.post(f"/api/papers/{second_id}/approve", json=saved).status_code == 200
+    original = client.get("/api/papers/" + pid).json()
+    assert original["results"][0]["status"] == "superseded"
+    assert sum(e["action"] == "Result superseded" for e in original["events"]) == 1
+
+    # Re-screening the older publication must not revive a replaced result.
+    for decision in ("Exclude", "Include"):
+        current = client.get("/api/papers/" + pid).json()
+        changed = client.post(f"/api/papers/{pid}/decision", json={
+            "decision": decision, "reason": "Automated re-screening test",
+            "reviewer": "Test runner", "treatment_class": "Albumin",
+            "version": current["version"],
+        })
+        assert changed.status_code == 200
+        assert changed.json()["results"][0]["status"] == "superseded"
+        assert changed.json()["draft"]["outcomes"][0]["status"] == "pending"
+    body["version"] = changed.json()["version"]
+    assert client.post(f"/api/papers/{pid}/approve", json=body).status_code == 409
+
 
 def test_consistency_check_blocks_conflicting_values(client, monkeypatch):
     from backend import ai
