@@ -1,6 +1,6 @@
 # Submission verification — October 7, 2026
 
-This maps the supplied assignment and Rahul’s clarification to the implementation.
+This maps the supplied assignment and subsequent scope clarification to the implementation.
 It is a software verification record, not clinical adjudication of the publications.
 
 ## Requirements
