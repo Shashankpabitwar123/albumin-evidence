@@ -398,9 +398,6 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                 </section>
                 <Source
                   paper={paper}
-                  referenceWarnings={screen.warnings.filter(
-                    isReferenceCorrection,
-                  )}
                   citation={
                     citation ||
                     (() => {

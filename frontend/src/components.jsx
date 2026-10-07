@@ -100,7 +100,7 @@ export function Modal({ title, onClose, children }) {
     </div>
   );
 }
-export function Source({ paper, citation, referenceWarnings = [] }) {
+export function Source({ paper, citation }) {
   const [page, setPage] = React.useState(citation?.page || 1);
   const [highlight, setHighlight] = React.useState(null);
   const [matchError, setMatchError] = React.useState("");
@@ -181,30 +181,6 @@ export function Source({ paper, citation, referenceWarnings = [] }) {
           </strong>
           <p>{citation.quote}</p>
         </blockquote>
-      )}
-      {citation?.reference_check && (
-        <details>
-          <summary>Reference check details</summary>
-          <p>
-            The page reference was corrected from{" "}
-            {citation.reference_check.original_page || "unconfirmed"} to{" "}
-            {citation.reference_check.verified_page} after matching the quoted
-            text.
-          </p>
-        </details>
-      )}
-      {!citation?.reference_check && referenceWarnings.length > 0 && (
-        <details>
-          <summary>Reference check details</summary>
-          <p>
-            Earlier screening reference checks are recorded below. These older
-            records do not identify which passage was corrected; they may refer
-            to a different criterion.
-          </p>
-          {referenceWarnings.map((w, i) => (
-            <p key={i}>{w}</p>
-          ))}
-        </details>
       )}
       {matchError && <Notice type="warning">{matchError}</Notice>}
       <details open ref={detailRef}>
