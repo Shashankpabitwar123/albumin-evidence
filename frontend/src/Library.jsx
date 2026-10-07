@@ -231,7 +231,7 @@ export default function Library({ onReview, refresh, initialOrigin }) {
                                 (r) => !["approved"].includes(r.status),
                               ) && (
                                 <span className="small amber block">
-                                  Notes or unresolved issues
+                                  {reviewSummary(s.outcomes)}
                                 </span>
                               )}
                             </td>
@@ -366,4 +366,21 @@ function Result({ row: r, sources }) {
       </details>
     </article>
   );
+}
+
+function reviewSummary(rows) {
+  const labels = [
+    ["pending", "pending"],
+    ["withheld", "withheld"],
+    ["qualified", "with notes"],
+    ["duplicate", "duplicate"],
+    ["superseded", "superseded"],
+  ];
+  return labels
+    .map(([status, label]) => {
+      const count = rows.filter((r) => r.status === status).length;
+      return count ? `${count} ${label}` : null;
+    })
+    .filter(Boolean)
+    .join(" · ");
 }

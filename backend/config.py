@@ -16,7 +16,7 @@ MODEL = os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
 BUDGET = float(os.getenv("AI_BUDGET_USD", "5"))
 MAX_BYTES = 12 * 1024 * 1024
 MAX_PAGES = 40
-PROMPT_VERSION = "2026-10-06-v4"
+PROMPT_VERSION = "2026-10-06-v5"
 CRITERIA = """Adults aged 18+ with cirrhosis and ascites; repeated scheduled albumin
 intended for outpatient maintenance plus standard medical therapy. Initial hospital
 admission is allowed if scheduled treatment continues after discharge. Acute inpatient

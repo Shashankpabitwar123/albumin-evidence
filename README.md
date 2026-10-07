@@ -30,7 +30,7 @@ An identical file reopens its saved review. DOI/trial matches flag possible rela
 
 ## What is automated, manual, and simulated
 
-- **Automated:** workbook import, declared source-based QC rules, PDF text extraction, file-hash duplicate checks, OpenAI screening and extraction proposals, exact source-quote matching, storage and library updates.
+- **Automated:** workbook import, declared source-based QC rules, PDF text extraction, file-hash duplicate checks, OpenAI screening and extraction proposals, exact source-quote matching, a second AI pass checking extraction contradictions, storage and library updates.
 - **Manual reviewer work:** eligibility, combination-treatment attribution, study linkage, checking and correcting proposed fields, confirming results individually, and explaining uncertainty. Reviewer names are entered labels, not verified individual accounts.
 - **Fictional:** all supplied workbook studies, values, citations, and excerpts. The real PDFs do not substantiate them. The UI never pools fictional and real numerical results.
 - **Test simulation:** automated workflow tests use synthetic PDFs and clearly identified test reviewers in isolated databases. Live AI evaluation uses the four supplied PDFs in a separate local evaluation database. Those automated approvals are not human reviews and are not seeded into the hosted workspace.
@@ -51,7 +51,7 @@ The review includes outpatient continuation after initial hospitalization. Combi
 - React/Vite frontend, three main tabs, locally served fonts.
 - FastAPI backend; one server worker; all data and PDF routes require a shared-password session.
 - SQLite transactions, WAL, optimistic review versions, audit history, persistent PDF files.
-- OpenAI Responses API with structured Pydantic output; `store=false`. Only extracted publication text is sent, not passwords or the fictional workbook.
+- OpenAI Responses API with structured Pydantic output and a separate extraction consistency check; `store=false`. Only extracted publication text is sent, not passwords or the fictional workbook.
 - Exact quote verification checks source presence, not whether a quoted passage supports a numerical claim. Exact unique matches on another page are relocated with a warning; unmatched passages remain flagged.
 
 ## Limits and failure handling
@@ -60,7 +60,7 @@ Searchable PDFs only, maximum 12 MB, 40 pages, 160,000 extracted characters, and
 
 API failures keep uploaded files and saved reviews. Interrupted jobs become retryable on restart. Conflicting saves return a reload instruction instead of overwriting another review. Database errors return a controlled error. The service cannot guarantee zero downtime or correct AI results.
 
-`AI_BUDGET_USD` defaults to $5 per database lifetime, not per month. Each request reserves $0.50 before it starts; successful requests reconcile token estimates. Failed or interrupted calls keep the reservation because their billable status may be uncertain. Rates are configured for GPT-5.4-mini ($0.75/M input, $4.50/M output as checked October 6, 2026). Do not change the model without updating and checking the pricing calculation. This application guard covers this installation only; use provider billing controls for the whole API account.
+`AI_BUDGET_USD` defaults to $5 per database lifetime, not per month. Each screening or extraction job reserves $0.50 before it starts (extraction includes two model calls); successful requests reconcile token estimates. Failed or interrupted calls keep the reservation because their billable status may be uncertain. Rates are configured for GPT-5.4-mini ($0.75/M input, $4.50/M output as checked October 6, 2026). Do not change the model without updating and checking the pricing calculation. This application guard covers this installation only; use provider billing controls for the whole API account.
 
 ## Deploy on Render
 

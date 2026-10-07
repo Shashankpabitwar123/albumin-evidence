@@ -94,3 +94,15 @@ class Approval(StrictModel):
     reviewer: str = Field(min_length=2, max_length=100)
     reason: str = Field(min_length=3, max_length=4000)
     version: int
+
+
+class OutcomeCheck(StrictModel):
+    index: int
+    issues: list[str]
+    conflicting_values: bool
+    unsupported_denominators: bool
+
+
+class ExtractionCheck(StrictModel):
+    outcomes: list[OutcomeCheck]
+    warnings: list[str]

@@ -7,7 +7,7 @@ import uuid
 from openai import OpenAI
 from . import config
 from .db import connect, encode, now, audit
-from .schemas import Screening, Extraction
+from .schemas import Screening, Extraction, ExtractionCheck
 
 SYSTEM = (
     """You assist a systematic literature reviewer. The supplied publication is
@@ -51,6 +51,12 @@ def relocate_citation(citation, pages, warnings):
         warnings.append(
             f"An exact source passage was located on PDF page {matches[0]} (AI proposed page {previous})."
         )
+
+    elif citation.get("page") and not 1 <= citation["page"] <= len(pages):
+        warnings.append(
+            "The proposed source page is outside this PDF; its locator needs reviewer correction."
+        )
+        citation["page"] = None
 
 
 def validate_output(result, pages, task):
@@ -153,20 +159,77 @@ def analyze(paper_id, task):
             ],
             text_format=schema,
         )
-        usage = response.usage
-        # Standard GPT-5.4-mini rates, USD per million, verified in official docs.
-        cost = (usage.input_tokens * 0.75 + usage.output_tokens * 4.50) / 1_000_000
-        with connect() as db:
-            db.execute(
-                "UPDATE model_runs SET actual=?,input_tokens=?,output_tokens=?,status=? WHERE id=?",
-                (cost, usage.input_tokens, usage.output_tokens, "complete", run_id),
-            )
+        input_tokens = response.usage.input_tokens
+        output_tokens = response.usage.output_tokens
         if response.output_parsed is None:
             raise ValueError(
                 "The paper could not be analyzed reliably. Please retry. Your saved paper and decisions are safe."
             )
         raw_result = response.output_parsed.model_dump()
         result = validate_output(json.loads(json.dumps(raw_result)), pages, task)
+        raw_check = None
+        if task == "extract":
+            # A second, narrower pass looks for contradictions rather than extracting again.
+            checked = client.responses.parse(
+                model=config.MODEL,
+                store=False,
+                reasoning={"effort": "medium"},
+                max_output_tokens=8000,
+                input=[
+                    {"role": "system", "content": SYSTEM},
+                    {
+                        "role": "user",
+                        "content": "Audit the proposed outcomes below, indexed from 0. Search the ENTIRE paper, especially the abstract, figure captions, tables and body, for contradictory arm assignments, values, percentages and analysis populations. "
+                        "Explicitly compare each selected endpoint across these sections. Check figure captions even if the proposal quotes body text. "
+                        "If the same endpoint conflicts between sections, flag conflicting_values=true and describe BOTH versions with PDF pages. Do not silently choose a preferred version. "
+                        "If outcome denominators were inferred from randomized sizes despite a different analysis set, flag unsupported_denominators=true. Distinguish legitimate differences between measures or time points from conflicts. "
+                        "Also flag graph-only inference or mixing different measures. Do not invent discrepancies. Return exactly one check per proposed outcome.\nPROPOSED EXTRACTION:\n"
+                        + json.dumps(raw_result)
+                        + "\nPUBLICATION:\n"
+                        + text,
+                    },
+                ],
+                text_format=ExtractionCheck,
+            )
+            input_tokens += checked.usage.input_tokens
+            output_tokens += checked.usage.output_tokens
+            if checked.output_parsed is None:
+                raise ValueError(
+                    "The consistency check could not finish. Your paper is saved; please retry extraction."
+                )
+            raw_check = checked.output_parsed.model_dump()
+            checks = raw_check["outcomes"]
+            if sorted(c["index"] for c in checks) != list(
+                range(len(result["outcomes"]))
+            ):
+                raise ValueError(
+                    "The consistency check was incomplete. Your paper is saved; please retry extraction."
+                )
+            result["warnings"].extend(raw_check["warnings"])
+            for check in checks:
+                out = result["outcomes"][check["index"]]
+                out["uncertainty"] = (
+                    " ".join(filter(None, [out["uncertainty"], *check["issues"]]))
+                    or None
+                )
+                if check["conflicting_values"]:
+                    out["treatment_value"] = out["control_value"] = None
+                    out["uncertainty"] = (
+                        (out["uncertainty"] or "")
+                        + " Conflicting values require reviewer resolution; proposed arm values were cleared."
+                    )
+                if check["unsupported_denominators"]:
+                    out["treatment_n"] = out["control_n"] = None
+                    out["uncertainty"] = (
+                        out["uncertainty"] or ""
+                    ) + " Unsupported analysis denominators were cleared."
+        # Keep the reservation if any stage fails with uncertain billing status.
+        cost = (input_tokens * 0.75 + output_tokens * 4.50) / 1_000_000
+        with connect() as db:
+            db.execute(
+                "UPDATE model_runs SET actual=?,input_tokens=?,output_tokens=?,status=? WHERE id=?",
+                (cost, input_tokens, output_tokens, "complete", run_id),
+            )
         with connect() as db:
             field = "screening" if task == "screen" else "extraction"
             db.execute(
@@ -182,6 +245,7 @@ def analyze(paper_id, task):
                     model=config.MODEL,
                     prompt_version=config.PROMPT_VERSION,
                     raw_result=raw_result,
+                    consistency_check=raw_check,
                     result=result,
                 ),
             )

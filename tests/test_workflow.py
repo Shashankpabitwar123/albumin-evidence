@@ -306,3 +306,48 @@ def test_related_correction_supersedes_previous_result(client):
     assert (
         client.get("/api/papers/" + pid).json()["results"][0]["status"] == "superseded"
     )
+
+
+def test_consistency_check_blocks_conflicting_values(client, monkeypatch):
+    from backend import ai
+    from backend.schemas import Extraction, ExtractionCheck
+    from types import SimpleNamespace
+
+    pid, body = prepare(client)
+    proposal = Extraction(
+        characteristics=body["characteristics"],
+        outcomes=[body["outcomes"][0]["data"]],
+        warnings=[],
+    )
+    check = ExtractionCheck(
+        outcomes=[
+            dict(
+                index=0,
+                issues=["Body and figure report conflicting arm values."],
+                conflicting_values=True,
+                unsupported_denominators=True,
+            )
+        ],
+        warnings=[],
+    )
+    outputs = iter([proposal, check])
+    fake = SimpleNamespace(
+        responses=SimpleNamespace(
+            parse=lambda **kw: SimpleNamespace(
+                output_parsed=next(outputs),
+                usage=SimpleNamespace(input_tokens=100, output_tokens=100),
+            )
+        )
+    )
+    monkeypatch.setattr(ai, "OpenAI", lambda **kw: fake)
+    ai.analyze(pid, "extract")
+    paper = client.get("/api/papers/" + pid).json()
+    result = paper["extraction"]["outcomes"][0]
+    assert result["treatment_value"] is None and result["control_value"] is None
+    assert result["treatment_n"] is None and "conflicting" in result["uncertainty"]
+    assert (
+        paper["events"][0]["details"]["consistency_check"]["outcomes"][0][
+            "conflicting_values"
+        ]
+        is True
+    )
