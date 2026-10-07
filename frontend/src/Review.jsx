@@ -52,6 +52,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
     setIssues([]);
     setMessage("");
     setPaper(null);
+    setEdit(null);
     setCitation(null);
     setConfirm(false);
     if (!paperId) {

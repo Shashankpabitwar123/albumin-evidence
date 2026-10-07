@@ -133,7 +133,7 @@ function App() {
             <button
               key={id}
               className={tab === id ? "active" : ""}
-              onClick={() => setTab(id)}
+              onClick={() => (id === "review" ? open() : setTab(id))}
             >
               {label}
             </button>
