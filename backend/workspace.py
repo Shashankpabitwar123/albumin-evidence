@@ -131,10 +131,10 @@ def reset(body: ResetRequest):
         db.execute("DELETE FROM studies WHERE origin='real'")
         for p in keep:
             # Original AI proposals are immutable; reviewer edits live in draft/outcomes.
-            # Clear extraction so the next reviewer explicitly requests it again.
+            # Keep those proposals cached; only reviewer work is cleared.
             db.execute(
                 """UPDATE papers SET decision='Pending',reason=NULL,reviewer=NULL,
-                reviewed_at=NULL,treatment_class=NULL,extraction=NULL,draft=NULL,job=NULL,error=NULL,
+                reviewed_at=NULL,treatment_class=NULL,draft=NULL,job=NULL,error=NULL,
                 version=version+1 WHERE id=?""",
                 (p["id"],),
             )
@@ -152,6 +152,14 @@ def reset(body: ResetRequest):
                 None,
                 {"cached": True, "restored_by_reset": True},
             )
+            if p["extraction"]:
+                audit(
+                    db,
+                    p["id"],
+                    "AI extraction available",
+                    None,
+                    {"cached": True, "restored_by_reset": True},
+                )
         audit(
             db,
             "workspace",

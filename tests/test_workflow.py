@@ -429,12 +429,14 @@ def test_shared_reset_backup_and_stale_review(client, monkeypatch):
     after = client.get(f"/api/papers/{pid}").json()
     assert after["decision"] == "Pending"
     assert after["screening"] == before["screening"]
-    assert after["draft"] is None and after["extraction"] is None
+    assert after["draft"] is None
+    assert after["extraction"] == before["extraction"]
     assert after["reviewer"] is None and after["study_id"] is None
     assert after["version"] > before["version"]
     assert {e["action"] for e in after["events"]} == {
         "Uploaded",
         "AI screening completed",
+        "AI extraction available",
     }
     assert len(client.get("/api/papers").json()) == 1
     assert not (config.DATA / "extra.pdf").exists()
@@ -450,6 +452,26 @@ def test_shared_reset_backup_and_stale_review(client, monkeypatch):
         client.post("/api/workspace/reset", json={"confirmation": "RESET"}).status_code
         == 200
     )
+    # Even an exhausted budget must not cause a model call for cached proposals.
+    import backend.main as routes
+
+    def unexpected_model_call(*args, **kwargs):
+        raise AssertionError("Cached extraction must not call the model")
+
+    monkeypatch.setattr(routes, "analyze", unexpected_model_call)
+    monkeypatch.setattr(config, "BUDGET", 0)
+    assert client.post(f"/api/papers/{pid}/analyze/screen").json() == {"cached": True}
+    latest = client.get(f"/api/papers/{pid}").json()
+    decision = dict(
+        decision="Include",
+        reason="Fresh review",
+        reviewer="Test reviewer",
+        treatment_class="Albumin",
+        version=latest["version"],
+    )
+    assert client.post(f"/api/papers/{pid}/decision", json=decision).status_code == 200
+    assert client.post(f"/api/papers/{pid}/analyze/extract").json() == {"cached": True}
+    assert client.get(f"/api/papers/{pid}").json()["extraction"] == before["extraction"]
     client.cookies.clear()
     assert client.get("/api/workspace/backup").status_code == 401
     assert (

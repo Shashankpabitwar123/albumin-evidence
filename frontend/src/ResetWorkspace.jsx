@@ -25,9 +25,10 @@ export default function ResetWorkspace({ onReset }) {
       <h3 id="reset-heading">Start fresh</h3>
       <p>
         Restore the four supplied papers to Pending review. This clears reviewer
-        changes, extracted results and paper review history, and removes
-        additional uploads. The fictional workbook and AI screening suggestions
-        stay unchanged.
+        changes, result approvals and paper review history, and removes
+        additional uploads. The fictional workbook stays unchanged. Saved
+        screening and extraction suggestions remain available for a fresh
+        review.
       </p>
       <Notice type="warning">
         <strong>This is a shared workspace.</strong> Resetting affects everyone,
@@ -48,10 +49,6 @@ export default function ResetWorkspace({ onReset }) {
           <a className="text-button" href="/api/workspace/backup" download>
             Download workspace backup (.zip)
           </a>
-          <p className="small muted">
-            Existing API spending is not reset. Extracting results again uses
-            the remaining API budget.
-          </p>
           {error && <Notice type="error">{error}</Notice>}
           <Field
             label="Type RESET to confirm"
