@@ -965,3 +965,16 @@ blockquote {
   gap: 8px 24px;
   margin: 12px 0 24px;
 }
+
+.workspace-reset {
+  border-top: 1px solid #d5dbe2;
+  margin-top: 28px;
+  padding-top: 16px;
+}
+.reset-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}

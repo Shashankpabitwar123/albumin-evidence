@@ -92,3 +92,9 @@ Workflow tests use temporary storage and make no paid API calls. They cover raw 
 - `tests/`: isolated automated verification.
 
 The repository is intended for private assignment handoff. Supplied publications are not redistributed in the source repository; upload the four attachments supplied by Rahul through the application.
+
+## Shared workspace reset
+
+Help → Start fresh → Reset workspace opens a confirmation. Reset affects every visitor in the shared workspace. Type `RESET` to confirm. It restores the four supplied PDFs to Pending review, keeps their cached AI screening suggestions, removes all reviewer decisions/drafts/results and extra uploads, and rebuilds each paper’s history with Uploaded and AI screening completed entries. The fictional workbook remains unchanged. A separate workspace reset event is retained for operations.
+
+Download the ZIP backup before resetting to keep PDFs and JSON records for offline inspection or owner-assisted recovery. There is no in-app restore. Credentials and sessions are excluded from the backup. Reset is blocked during analysis or if an original file/screening is missing. Existing review versions are incremented so stale tabs cannot overwrite a reset. Refresh other open windows afterward. API spending history is retained; extracting outcomes again consumes remaining budget.

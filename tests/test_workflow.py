@@ -377,3 +377,91 @@ def test_reviewer_treatment_override_is_preserved(client):
         ]
         == "Combination"
     )
+
+
+def test_shared_reset_backup_and_stale_review(client, monkeypatch):
+    import io
+    import json
+    import zipfile
+    from backend import workspace
+
+    pid, approval = prepare(client)
+    assert client.post(f"/api/papers/{pid}/approve", json=approval).status_code == 200
+    before = client.get(f"/api/papers/{pid}").json()
+    mock = client.get("/api/library").json()
+    monkeypatch.setattr(workspace, "originals", lambda: {before["sha256"]: "paper.pdf"})
+    with connect() as db:
+        db.execute(
+            "INSERT INTO model_runs VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            ("cost", pid, "screen", "test", "test", "complete", 0.5, 0.1, 1, 1, "now"),
+        )
+        db.execute(
+            "INSERT INTO papers(id,sha256,filename,pages,page_count,created) VALUES('extra','extra','extra.pdf','[]',1,'now')"
+        )
+    (config.DATA / "extra.pdf").write_bytes(b"extra test document")
+    backup = client.get("/api/workspace/backup")
+    assert backup.status_code == 200
+    with zipfile.ZipFile(io.BytesIO(backup.content)) as z:
+        saved = json.loads(z.read("workspace.json"))["tables"]
+        assert len(saved["papers"]) == 2
+        assert "sessions" not in saved
+        assert "papers/extra.pdf" in z.namelist()
+        assert any(
+            o["paper_id"] == pid and o["status"] == "approved"
+            for o in saved["outcomes"]
+        )
+    assert (
+        client.post("/api/workspace/reset", json={"confirmation": "reset"}).status_code
+        == 422
+    )
+    with connect() as db:
+        db.execute("UPDATE papers SET job='screen' WHERE id=?", (pid,))
+    assert (
+        client.post("/api/workspace/reset", json={"confirmation": "RESET"}).status_code
+        == 409
+    )
+    with connect() as db:
+        db.execute("UPDATE papers SET job=NULL WHERE id=?", (pid,))
+    assert (
+        client.post("/api/workspace/reset", json={"confirmation": "RESET"}).status_code
+        == 200
+    )
+    after = client.get(f"/api/papers/{pid}").json()
+    assert after["decision"] == "Pending"
+    assert after["screening"] == before["screening"]
+    assert after["draft"] is None and after["extraction"] is None
+    assert after["reviewer"] is None and after["study_id"] is None
+    assert after["version"] > before["version"]
+    assert {e["action"] for e in after["events"]} == {
+        "Uploaded",
+        "AI screening completed",
+    }
+    assert len(client.get("/api/papers").json()) == 1
+    assert not (config.DATA / "extra.pdf").exists()
+    assert client.get("/api/library?origin=real").json()["studies"] == []
+    assert client.get("/api/library").json() == mock
+    assert client.post(f"/api/papers/{pid}/approve", json=approval).status_code == 409
+    with connect() as db:
+        assert (
+            db.execute("SELECT actual FROM model_runs WHERE id='cost'").fetchone()[0]
+            == 0.1
+        )
+    assert (
+        client.post("/api/workspace/reset", json={"confirmation": "RESET"}).status_code
+        == 200
+    )
+    client.cookies.clear()
+    assert client.get("/api/workspace/backup").status_code == 401
+    assert (
+        client.post("/api/workspace/reset", json={"confirmation": "RESET"}).status_code
+        == 401
+    )
+
+
+def test_reset_requires_all_originals(client):
+    response, _ = upload(client)
+    assert (
+        client.post("/api/workspace/reset", json={"confirmation": "RESET"}).status_code
+        == 409
+    )
+    assert client.get("/api/papers/" + response.json()["id"]).status_code == 200

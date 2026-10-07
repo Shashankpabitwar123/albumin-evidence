@@ -29,6 +29,7 @@ from .workbook import seed
 from .auth import require_session, sign_in
 from .ai import analyze, validate_citation
 from .schemas import Decision, Approval
+from .workspace import router as workspace_router
 
 
 @asynccontextmanager
@@ -635,6 +636,8 @@ def approve(pid: str, body: Approval):
         )
     return paper(pid)
 
+
+app.include_router(workspace_router)
 
 # The public shell contains no research data. Every data/source route requires a session.
 DIST = config.ROOT / "frontend/dist"

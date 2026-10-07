@@ -12,6 +12,7 @@ import { Busy, Notice, Field, Modal } from "./components";
 import Library from "./Library";
 import Review from "./Review";
 import History from "./History";
+import ResetWorkspace from "./ResetWorkspace";
 
 class ErrorBoundary extends React.Component {
   state = { failed: false };
@@ -41,6 +42,7 @@ function App() {
     [paperId, setPaperId] = React.useState(null),
     [refresh, setRefresh] = React.useState(0),
     [help, setHelp] = React.useState(false),
+    [resetNotice, setResetNotice] = React.useState(false),
     [libraryOrigin, setLibraryOrigin] = React.useState("mock");
   React.useEffect(() => {
     api("/session")
@@ -152,6 +154,18 @@ function App() {
         </div>
       </header>
       <main>
+        {resetNotice && (
+          <Notice>
+            The shared workspace has been reset for everyone. The four supplied
+            papers are ready to review.{" "}
+            <button
+              className="text-button"
+              onClick={() => setResetNotice(false)}
+            >
+              Dismiss
+            </button>
+          </Notice>
+        )}
         {tab === "library" ? (
           <Library
             initialOrigin={libraryOrigin}
@@ -218,6 +232,15 @@ function App() {
             Corrections should retain previous values and an explanation in the
             decision trail.
           </p>
+          <ResetWorkspace
+            onReset={() => {
+              setHelp(false);
+              setPaperId(null);
+              setRefresh((n) => n + 1);
+              setTab("history");
+              setResetNotice(true);
+            }}
+          />
         </Modal>
       )}
     </>
