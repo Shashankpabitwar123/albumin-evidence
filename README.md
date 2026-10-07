@@ -1,109 +1,116 @@
 # Albumin Evidence
 
-A password-protected workspace for maintaining evidence on scheduled outpatient albumin in adults with cirrhosis and ascites. It imports the supplied fictional workbook, screens new searchable research PDFs, proposes selected extraction, and distinguishes approved results from pending or withheld records.
+A shared workspace for reviewing research on long-term outpatient albumin in adults with cirrhosis and ascites. It brings existing evidence and new publications into one review process, while keeping fictional workbook data separate from real research.
 
-## Run locally
+## Open the website
 
-Requires Python 3.13 and Node.js 22 (Node 20.19+ also works).
+**[Use Albumin Evidence](https://albumin-evidence.onrender.com)** and enter the workspace password supplied separately.
+
+**No installation, OpenAI account or API key is needed to use the hosted website.** Its analysis connection is already configured on the server. The code ZIP is provided so you can inspect the implementation or run your own copy; running locally is optional.
+
+This is a shared workspace. Saved reviews and resets affect everyone with access. The in-app **Help** explains the controls and review steps.
+
+## How the review works
+
+1. **Explore existing evidence.** In Evidence Library, choose Workbook · fictional or Publications · real. Filter by study, outcome and follow-up, then expand a study to see its results and sources.
+2. **Upload and screen a paper.** Review a Paper accepts a searchable PDF. The app suggests Include, Exclude or Needs clarification, with reasons and supporting passages. The reviewer confirms or changes the decision and records a name and reason.
+3. **Check the proposed information.** For an included paper, the app prefills study details and up to two outcomes. An outcome is something the study measured, such as deaths or hospital admissions. Check the values, units, denominators, follow-up and source references; correct mistakes and leave missing information missing.
+4. **Approve each result.** Keep unresolved results pending or withhold them with a reason. Confirming the review saves individual result decisions and updates the library. Including a paper does not automatically approve its results.
+5. **Return to earlier work.** Review History keeps pending, excluded and included papers accessible. Open review reopens a saved paper; History shows previous decisions. Last decision shows the latest screening or extraction review. The main Review a Paper tab starts a fresh upload.
+
+Save a draft before leaving unfinished edits. Field errors move into view and can be selected to reach the affected field. Source passages can be selected to highlight matching page text; the original PDF is also available.
+
+## How data quality is handled
+
+The supplied workbook contains **7 studies, 34 outcome rows and 11 fictional source records**. Its README describes older counts and absent records; the supplied file was used as-is following the assignment clarification. Baseline study eligibility was accepted, while extracted results were checked against the supplied fictional excerpts.
+
+- Supported corrections, such as a wrong outcome label or analysis denominator, are recorded alongside the original extraction.
+- Conflicting or unsupported results are withheld; missing information stays unresolved. Duplicate and superseded records remain traceable.
+- Blank means not captured, **NR** means not reported, and **0** is an explicit zero.
+- **Review data issues** shows results that are not fully approved or have recorded uncertainty. Approval does not remove a source limitation. **Show all results** removes that extra filter.
+- Fictional and real results are never combined in numerical summaries. Counts, episodes, rates and survival estimates are not pooled as if they were the same measure.
+
+Result cards contain the handling notes, source details and original values. The raw workbook is preserved in `data/evidence.xlsx`; explicit workbook quality-control rules are in `backend/workbook.py`.
+
+## Important design choices
+
+**Human decisions remain separate from suggestions.** The app assists with reading and organizing evidence; reviewers decide eligibility and approve individual results. Reviewer names are entered labels, not verified individual accounts.
+
+**The review has a defined scope.** It covers adults with cirrhosis and ascites receiving scheduled outpatient albumin, with a concurrent comparator, in randomized or comparative observational studies. Initial hospitalization is allowed if maintenance continues after discharge; acute inpatient treatment alone is outside scope. No extra country, year, dose or duration cutoff is imposed. Combination treatments require explicit classification so their effects are not attributed to albumin alone.
+
+**Repeated uploads do not create another copy.** An identical file reopens its existing review. Matching DOI or trial identifiers flag possible related reports; a reviewer confirms study linkage. A correction can explicitly replace an earlier approved result while retaining its history. Different file versions without matching identifiers require manual checking.
+
+## What is automated and what is manual
+
+| Part | Responsibility |
+| --- | --- |
+| Workbook import and predefined source-based quality checks | Application code |
+| PDF text reading, duplicate-file detection and source-quote matching | Application code |
+| Screening, extraction suggestions and a second consistency check | OpenAI-assisted analysis |
+| Eligibility, treatment classification, study linkage, corrections and result approval | Human reviewer |
+| Saving decisions, audit history and library updates | Application code |
+
+Workbook studies, values and source excerpts are fictional. Real PDFs do not validate them. Automated tests use synthetic papers and isolated databases; test approvals are not human reviews. Code, documentation and tests were developed with Codex assistance.
+
+## Limits to keep in mind
+
+- Searchable PDFs only, up to **12 MB and 40 pages**. Scanned documents need OCR before upload; OCR and graph digitization are not included.
+- Tables and text columns can be misread. A matching source quote confirms text presence, not correct interpretation. AI suggestions and consistency notes require checking even when no warning appears.
+- The app does not perform automatic literature searches, comprehensive extraction or meta-analysis, and does not provide clinical recommendations.
+- Saved reviews are retained on handled analysis failures. Concurrent changes require reloading rather than overwriting another review. Availability and AI accuracy cannot be guaranteed.
+
+## Reset and backup
+
+In **Help → Start fresh**, reset returns the four supplied papers to Pending review, retains their saved analysis suggestions and removes reviewer decisions, drafts, results and additional uploads. The fictional workbook stays unchanged. **Reset affects everyone in the shared workspace.** It requires typing RESET and is blocked during analysis or if the original files/screening are missing.
+
+Download the workspace ZIP backup before resetting if you need the current PDFs, records and history. It supports offline inspection or owner-assisted recovery; **it cannot be imported through the website**. Refresh other open windows after a reset.
+
+## What is in the source ZIP?
+
+| Location | Purpose |
+| --- | --- |
+| `backend/main.py` | API routes and screening/approval workflow |
+| `backend/ai.py`, `schemas.py` | Model requests, source checks and structured data validation |
+| `backend/workbook.py` | Workbook import and documented data-quality handling |
+| `backend/db.py`, `auth.py`, `workspace.py` | Storage, login, history, reset and backup |
+| `frontend/src/` | Library, Review, History, Help and shared interface controls |
+| `data/evidence.xlsx` | Original fictional workbook |
+| `tests/`, frontend `*.test.js` files | Isolated automated checks |
+| `Dockerfile`, `render.yaml` | Hosting configuration |
+| `.env.example` | Configuration template with no real credentials |
+
+The ZIP contains source code and the workbook, **not the hosted database, uploaded PDFs, workspace password or OpenAI key**. The four supplied publications must be uploaded separately for a new local installation.
+
+For implementation details, deployment and test commands, see [Technical notes](docs/TECHNICAL.md). For the requirement checklist, verification results and demonstration steps, see [Submission verification](docs/VERIFICATION.md).
+
+## Optional: run your own copy locally
+
+**To evaluate the complete workflow without configuring an API key, use the hosted website above.** Local setup is for someone who wants to run or modify a separate copy.
+
+You need Python 3.13 and Node.js 22. Unzip the source and open a terminal in its top-level folder, where this README is located.
 
 ```sh
 python3 -m venv .venv
-. .venv/bin/activate
+source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env.local
-# Edit .env.local: set OPENAI_API_KEY and a strong APP_PASSWORD.
+```
+
+On Windows PowerShell, activate with `.venv\Scripts\Activate.ps1` and copy the template with `Copy-Item .env.example .env.local` instead.
+
+Open `.env.local` in a text editor:
+
+- Set `APP_PASSWORD` to your own strong password of at least 12 characters.
+- Leave `OPENAI_API_KEY` blank to browse the fictional workbook without AI analysis.
+- **For new PDF screening and extraction locally, provide your own OpenAI API key. No key is included, and a local copy does not use the hosted website’s connection.** Any resulting API usage belongs to that key’s account.
+- Keep `COOKIE_SECURE=false` for local HTTP. Never share or commit this configuration file.
+
+Then run:
+
+```sh
 npm ci --prefix frontend
 npm run build --prefix frontend
 uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 
-Open http://127.0.0.1:8000. The database and uploaded PDFs are created in `runtime/`. An empty database imports the workbook once. The four real PDFs are not bundled or preloaded in a fresh installation: upload Rahul’s original attachments through the same review workflow. An OpenAI key is needed for new analysis; workbook browsing works without one. Changing the workbook later does not silently overwrite existing records. Do not commit runtime files or credentials. `ENV_FILE` can point to a separate local credential file.
-
-The in-app **Help** is the reviewer guide. This README also covers setup, architecture and operational limits. See [submission verification](docs/VERIFICATION.md) for the requirement checklist and testing boundaries.
-
-## Review workflow
-
-1. **Evidence Library:** use the fictional/real source selector and study, outcome, and follow-up filters. Expand studies to see results, source excerpts, original extraction, and unresolved issues.
-2. **Review a Paper:** upload a searchable PDF, then screen it. Check the AI recommendation against each criterion and the original PDF. Record your decision, reason, name, and treatment classification.
-3. An outcome is something measured by a study, such as mortality or hospitalization. For an included study, prepare extraction. Correct study characteristics and up to two results. Check each measure, value, denominator, time window, source quote, and PDF page. Keep unresolved results pending or withhold them. Save a draft or confirm the review.
-4. **Review History:** resume pending or excluded papers, inspect reviewer decisions and AI versions, and reopen results. Last decision reflects the latest screening or extraction review, not a draft save. Study inclusion does not approve any result automatically.
-
-The main Review a Paper tab opens a fresh upload form; use History → Open review for a saved paper. Save a draft before leaving unfinished edits. Validation errors scroll into view and link to the affected field.
-
-Review data issues shows results that are not fully approved or have recorded uncertainty. Approval does not remove a source limitation; a routine source-verification note alone is not an issue. Show all results removes this extra filter. Library totals describe the selected evidence source; filters control the rows below them.
-
-An identical file reopens its saved review. DOI/trial matches flag possible related reports; a reviewer chooses linkage. Linked corrections can explicitly supersede an earlier approved result. Original values remain in the audit history. Different copies with missing or inconsistent identifiers need manual identity review; there is no claim of perfect study deduplication.
-
-## What is automated, manual, and simulated
-
-- **Automated:** workbook import, declared source-based QC rules, PDF text extraction, file-hash duplicate checks, OpenAI screening and extraction proposals, exact source-quote matching, a second AI pass checking extraction contradictions, storage and library updates.
-- **Manual reviewer work:** eligibility, combination-treatment attribution, study linkage, checking and correcting proposed fields, confirming results individually, and explaining uncertainty. Reviewer names are entered labels, not verified individual accounts.
-- **Fictional:** all supplied workbook studies, values, citations, and excerpts. The real PDFs do not substantiate them. The UI never pools fictional and real numerical results.
-- **Test simulation:** automated workflow tests use synthetic PDFs and clearly identified test reviewers in isolated databases. Live AI evaluation uses the four supplied PDFs in a separate local evaluation database. Those automated approvals are not human reviews and are not seeded into the hosted workspace.
-- **AI-assisted development:** the application code, documentation, tests and source-quality review were developed with Codex assistance. This is distinct from runtime AI suggestions, which still need reviewer confirmation.
-
-## Data decisions
-
-The supplied workbook has 7 studies, 34 outcome rows, and 11 source records. Its README references older counts and absent records. Rahul confirmed that the supplied workbook should be used as-is; no missing study or screening-inbox records were invented.
-
-The raw workbook and each original extraction are preserved. `backend/workbook.py` contains the explicit QC dispositions: conflicting reports, unsupported HRS mapping, missing comparator values, NR, matched versus enrolled denominators, interim versus final reports, and duplicate rows. Qualified results retain caveats. Baseline inclusion was accepted; the imported QC layer is not a new clinical adjudication.
-
-Blank, NR, and explicit zero are distinct. Counts, episodes, rates, Kaplan–Meier estimates, and time-to-event measures stay separate. There is no meta-analysis, pooled treatment estimate, automatic literature search, or clinical recommendation.
-
-The review includes outpatient continuation after initial hospitalization. Combination therapy is not automatically excluded: reviewers must label it explicitly, and its effect is not described as albumin alone.
-
-## Architecture
-
-- React/Vite frontend, three main tabs, locally served fonts.
-- FastAPI backend; one server worker; all data and PDF routes require a shared-password session.
-- SQLite transactions, WAL, optimistic review versions, audit history, persistent PDF files.
-- OpenAI Responses API with structured Pydantic output and a separate extraction consistency check; `store=false`. Only extracted publication text is sent, not passwords or the fictional workbook.
-- Exact quote verification checks source presence, not whether a quoted passage supports a numerical claim. Exact unique matches on another page are relocated with a warning; unmatched passages remain flagged.
-
-## Limits and failure handling
-
-Searchable PDFs only, maximum 12 MB, 40 pages, 160,000 extracted characters, and 100 saved documents within a 750 MB upload allowance. At most two papers are analyzed concurrently. Scanned, encrypted, malformed or mostly unreadable PDFs are rejected with a reason. OCR and graph digitization are not implemented. Tables and column ordering can still be misread; the original PDF is available for checking. A matching quote does not guarantee a correct interpretation. Human checking is required even when no warning appears.
-
-API failures keep uploaded files and saved reviews. Interrupted jobs become retryable on restart. Conflicting saves return a reload instruction instead of overwriting another review. Database errors return a controlled error. The service cannot guarantee zero downtime or correct AI results.
-
-`AI_BUDGET_USD` defaults to $5 per database lifetime, not per month. Each screening or extraction job reserves $0.50 before it starts (extraction includes two model calls); successful requests reconcile token estimates. Failed or interrupted calls keep the reservation because their billable status may be uncertain. Rates are configured for GPT-5.4-mini ($0.75/M input, $4.50/M output as checked October 6, 2026). Do not change the model without updating and checking the pricing calculation. This application guard covers this installation only; use provider billing controls for the whole API account.
-
-## Deploy on Render
-
-`Dockerfile` builds the frontend and runs one Python service. `render.yaml` specifies the $7/month Starter service plus a 1 GB persistent disk ($0.25/month), on a free Hobby workspace. Set server-only `OPENAI_API_KEY` and `APP_PASSWORD`; use `COOKIE_SECURE=true` and `DATA_DIR=/var/data`. Prices exclude tax and excess usage; OpenAI is separate.
-
-Both SQLite and PDFs must be on the attached disk. Never deploy this app's database on Render's ephemeral root filesystem. Persistent disks imply a single instance and brief interruption during deployment. SQLite suits this small reviewer workspace; a larger multi-user service would need a managed database, stronger identity management, and background job infrastructure.
-
-Back up the database using SQLite's backup API (not by copying a live database file alone), together with its PDFs. Protect backup files like the workspace. Export or download backups before deleting the Render service or disk.
-
-## Tests
-
-```sh
-python -m pytest -q
-node --test frontend/src/*.test.js
-npm run build --prefix frontend
-```
-
-Workflow tests use temporary storage and make no paid API calls. They cover raw import/QC, missing versus zero, invalid/scanned/encrypted PDFs, duplicates, protected downloads, approval and revocation, stale saves, draft persistence, citation checks, spending limits, provider failures, and correction history.
-
-## Code map
-
-- `backend/main.py`: HTTP routes and review transitions.
-- `backend/ai.py`: bounded model requests, citation verification, usage accounting.
-- `backend/schemas.py`: typed proposals and reviewer inputs.
-- `backend/workbook.py`: original workbook import and documented QC.
-- `backend/db.py`: schema, transactions, audit history.
-- `backend/auth.py`: shared-password login, session cookies, rate limit.
-- `frontend/src/`: Library, Review, History and Help components, shared controls, styling.
-- `backend/workspace.py`: shared reset and portable backup export.
-- `frontend/src/validation.js`, `sourceMatch.js`, `resultIssues.js`: small tested UI rules.
-- `data/evidence.xlsx`: supplied fictional evidence workbook.
-- `tests/`: isolated automated verification.
-
-The repository is intended for private assignment handoff. Supplied publications are not redistributed in the source repository; upload the four attachments supplied by Rahul through the application.
-
-## Shared workspace reset
-
-Help → Start fresh → Reset workspace opens a confirmation. Reset affects every visitor in the shared workspace. Type `RESET` to confirm. It restores the four supplied PDFs to Pending review, keeps their cached AI screening and original extraction suggestions, removes all reviewer decisions/drafts/results and extra uploads, and rebuilds each paper’s history with Uploaded and AI screening completed entries. The fictional workbook remains unchanged. A separate workspace reset event is retained for operations.
-
-Download the ZIP backup before resetting to keep PDFs and JSON records for offline inspection or owner-assisted recovery. There is no in-app restore. Credentials and sessions are excluded from the backup. Reset is blocked during analysis or if an original file/screening is missing. On a fresh installation, upload and screen all four original attachments before using reset. Existing review versions are incremented so stale tabs cannot overwrite a reset. Refresh other open windows afterward. API spending history is retained. Cached screening and extraction are reused without model calls after reset. A paper that has never had extraction prepared still needs its first extraction; additional uploads also require analysis.
+Open **http://127.0.0.1:8000** and sign in with the password you set. The first start imports the fictional workbook; there are no preloaded real papers or hosted reviews. The local database and uploaded PDFs are saved in `runtime/`. Upload the supplied PDFs to review them; reset becomes available only after all four originals have been uploaded and screened. Later workbook edits do not automatically overwrite imported records.
