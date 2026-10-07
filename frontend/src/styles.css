@@ -945,3 +945,16 @@ blockquote {
     animation: none;
   }
 }
+
+.review-notes {
+  background: #fff8e9;
+  border: 1px solid #e5d3ae;
+  padding: 16px;
+  margin-bottom: 24px;
+  color: #754b11;
+  font-size: 14px;
+  line-height: 1.6;
+}
+.review-notes li + li {
+  margin-top: 9px;
+}

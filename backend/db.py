@@ -65,6 +65,10 @@ def init_db():
           created TEXT NOT NULL);
         CREATE TABLE IF NOT EXISTS sessions (token TEXT PRIMARY KEY, expires REAL NOT NULL);
         """)
+        # Additive migration keeps existing deployed reviews intact.
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(papers)")}
+        if "treatment_class" not in columns:
+            db.execute("ALTER TABLE papers ADD COLUMN treatment_class TEXT")
         # A restart never silently leaves a paper stuck in processing.
         db.execute(
             "UPDATE papers SET job=NULL,error='Processing was interrupted. Your saved work is safe. Please try again.' WHERE job IS NOT NULL"

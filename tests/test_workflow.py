@@ -307,6 +307,9 @@ def test_related_correction_supersedes_previous_result(client):
         client.get("/api/papers/" + pid).json()["results"][0]["status"] == "superseded"
     )
 
+    body["version"] = client.get("/api/papers/" + pid).json()["version"]
+    assert client.post(f"/api/papers/{pid}/approve", json=body).status_code == 409
+
 
 def test_consistency_check_blocks_conflicting_values(client, monkeypatch):
     from backend import ai
@@ -350,4 +353,27 @@ def test_consistency_check_blocks_conflicting_values(client, monkeypatch):
             "conflicting_values"
         ]
         is True
+    )
+
+
+def test_reviewer_treatment_override_is_preserved(client):
+    pid, _ = prepare(client)
+    paper = client.get("/api/papers/" + pid).json()
+    response = client.post(
+        f"/api/papers/{pid}/decision",
+        json=dict(
+            decision="Include",
+            reason="Reviewer confirmed a differing co-intervention.",
+            reviewer="Test reviewer",
+            treatment_class="Combination",
+            version=paper["version"],
+        ),
+    )
+    assert response.status_code == 200
+    assert client.get("/api/papers/" + pid).json()["treatment_class"] == "Combination"
+    assert (
+        client.get("/api/library?origin=real").json()["studies"][0]["characteristics"][
+            "treatment_class"
+        ]
+        == "Combination"
     )

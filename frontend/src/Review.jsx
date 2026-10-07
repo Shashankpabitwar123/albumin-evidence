@@ -22,7 +22,8 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
       sessionStorage.getItem("reviewer") || "",
     ),
     [classification, setClassification] = React.useState("Unclear"),
-    [link, setLink] = React.useState("");
+    [link, setLink] = React.useState(""),
+    [existingStudies, setExistingStudies] = React.useState([]);
   const [edit, setEdit] = React.useState(null),
     [confirm, setConfirm] = React.useState(false);
   const load = React.useCallback(async () => {
@@ -40,6 +41,11 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
       return;
     }
     let active = true;
+    api("/library?origin=real")
+      .then((data) => {
+        if (active) setExistingStudies(data.studies);
+      })
+      .catch((e) => active && setError(e.message));
     api("/papers/" + paperId)
       .then((p) => {
         if (!active) return;
@@ -51,7 +57,9 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
             : p.decision,
         );
         setReason(p.reason || "");
-        setClassification(p.screening?.treatment_class || "Unclear");
+        setClassification(
+          p.treatment_class || p.screening?.treatment_class || "Unclear",
+        );
         setLink(p.study_id || "");
         setEdit(p.draft || (p.extraction ? makeDraft(p) : null));
       })
@@ -336,6 +344,25 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                       <option>Combination</option>
                     </select>
                   </label>
+                  <label className="field">
+                    <span>Study record</span>
+                    <select
+                      value={link}
+                      disabled={!!paper.study_id}
+                      onChange={(e) => setLink(e.target.value)}
+                    >
+                      <option value="">Create a new study if included</option>
+                      {existingStudies.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          {s.title}
+                        </option>
+                      ))}
+                    </select>
+                    <small>
+                      For a related report or correction, select its existing
+                      study before saving inclusion.
+                    </small>
+                  </label>
                   <Field
                     label="Reviewer name"
                     value={reviewer}
@@ -398,11 +425,19 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                       These are AI-proposed fields. Check the source, make
                       corrections, and approve each result separately.
                     </Notice>
-                    {paper.extraction.warnings.map((w, i) => (
-                      <Notice key={i} type="warning">
-                        {w}
-                      </Notice>
-                    ))}
+                    {paper.extraction.warnings.length > 0 && (
+                      <details className="review-notes">
+                        <summary>
+                          Review {paper.extraction.warnings.length} source and
+                          consistency notes
+                        </summary>
+                        <ul>
+                          {paper.extraction.warnings.map((w, i) => (
+                            <li key={i}>{w}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                     <h2>Study details</h2>
                     <div className="form-grid">
                       {[

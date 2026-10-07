@@ -448,13 +448,14 @@ def decide(pid: str, body: Decision):
                 (pid,),
             )
         db.execute(
-            "UPDATE papers SET decision=?,reason=?,reviewer=?,reviewed_at=?,study_id=?,version=version+1 WHERE id=?",
+            "UPDATE papers SET decision=?,reason=?,reviewer=?,reviewed_at=?,study_id=?,treatment_class=?,version=version+1 WHERE id=?",
             (
                 body.decision,
                 body.reason.strip(),
                 body.reviewer.strip(),
                 now(),
                 sid,
+                body.treatment_class,
                 pid,
             ),
         )
