@@ -146,7 +146,7 @@ def analyze(paper_id, task):
             model=config.MODEL,
             store=False,
             reasoning={"effort": "medium"},
-            max_output_tokens=6500,
+            max_output_tokens=16000,
             input=[
                 {"role": "system", "content": SYSTEM},
                 {"role": "user", "content": prompt + "\n\n" + text},

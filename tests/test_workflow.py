@@ -198,81 +198,111 @@ def test_protected_files_and_mutations(client):
 
 
 def test_unreadable_and_encrypted_pdfs(client):
-    doc = fitz.open(); doc.new_page()
+    doc = fitz.open()
+    doc.new_page()
     blank = doc.tobytes()
-    encrypted = doc.tobytes(encryption=fitz.PDF_ENCRYPT_AES_256, owner_pw='owner', user_pw='secret')
+    encrypted = doc.tobytes(
+        encryption=fitz.PDF_ENCRYPT_AES_256, owner_pw="owner", user_pw="secret"
+    )
     doc.close()
-    for name, payload in [('scan.pdf', blank), ('locked.pdf', encrypted)]:
-        response = client.post('/api/upload', files={'file': (name, payload, 'application/pdf')})
+    for name, payload in [("scan.pdf", blank), ("locked.pdf", encrypted)]:
+        response = client.post(
+            "/api/upload", files={"file": (name, payload, "application/pdf")}
+        )
         assert response.status_code == 422
-    assert client.get('/api/papers').json() == []
+    assert client.get("/api/papers").json() == []
 
 
 def test_missing_results_pending_and_draft_persistence(client):
     pid, body = prepare(client)
-    body['outcomes'][0]['data']['treatment_value'] = None
-    body['outcomes'][0]['data']['control_value'] = None
-    assert client.post(f'/api/papers/{pid}/approve', json=body).status_code == 422
-    body['outcomes'][0]['status'] = 'pending'
-    saved = client.post(f'/api/papers/{pid}/draft', json=body)
+    body["outcomes"][0]["data"]["treatment_value"] = None
+    body["outcomes"][0]["data"]["control_value"] = None
+    assert client.post(f"/api/papers/{pid}/approve", json=body).status_code == 422
+    body["outcomes"][0]["status"] = "pending"
+    saved = client.post(f"/api/papers/{pid}/draft", json=body)
     assert saved.status_code == 200
-    body['version'] = saved.json()['version']
-    assert client.get('/api/papers/'+pid).json()['draft']['outcomes'][0]['data']['control_value'] is None
-    assert client.post(f'/api/papers/{pid}/approve', json=body).status_code == 200
-    result = client.get('/api/library?origin=real').json()['studies'][0]['outcomes'][0]
-    assert result['status'] == 'pending' and result['data']['treatment_value'] is None
+    body["version"] = saved.json()["version"]
+    assert (
+        client.get("/api/papers/" + pid).json()["draft"]["outcomes"][0]["data"][
+            "control_value"
+        ]
+        is None
+    )
+    assert client.post(f"/api/papers/{pid}/approve", json=body).status_code == 200
+    result = client.get("/api/library?origin=real").json()["studies"][0]["outcomes"][0]
+    assert result["status"] == "pending" and result["data"]["treatment_value"] is None
 
 
 def test_budget_guard_does_not_call_model(client, monkeypatch):
     from backend import ai
+
     pid, _ = prepare(client)
-    monkeypatch.setattr(config, 'BUDGET', 0)
-    monkeypatch.setattr(ai, 'OpenAI', lambda **kw: pytest.fail('Budget must block the model call'))
-    ai.analyze(pid, 'screen')
-    p = client.get('/api/papers/'+pid).json()
-    assert 'spending limit' in p['error'] and p['job'] is None
+    monkeypatch.setattr(config, "BUDGET", 0)
+    monkeypatch.setattr(
+        ai, "OpenAI", lambda **kw: pytest.fail("Budget must block the model call")
+    )
+    ai.analyze(pid, "screen")
+    p = client.get("/api/papers/" + pid).json()
+    assert "spending limit" in p["error"] and p["job"] is None
 
 
 def test_model_failure_keeps_saved_paper_and_reservation(client, monkeypatch):
     from backend import ai
+
     pid, _ = prepare(client)
+
     def unavailable(**kwargs):
-        raise RuntimeError('private upstream details must not be exposed')
-    monkeypatch.setattr(ai, 'OpenAI', unavailable)
-    ai.analyze(pid, 'extract')
-    p = client.get('/api/papers/'+pid).json()
-    assert 'unavailable' in p['error'] and 'private' not in p['error']
+        raise RuntimeError("private upstream details must not be exposed")
+
+    monkeypatch.setattr(ai, "OpenAI", unavailable)
+    ai.analyze(pid, "extract")
+    p = client.get("/api/papers/" + pid).json()
+    assert "unavailable" in p["error"] and "private" not in p["error"]
     with connect() as db:
-        row = db.execute('SELECT * FROM model_runs').fetchone()
-        assert row['status'] == 'failed' and row['reserved'] == 0.5
+        row = db.execute("SELECT * FROM model_runs").fetchone()
+        assert row["status"] == "failed" and row["reserved"] == 0.5
 
 
 def test_exact_quote_page_relocation():
     from backend.ai import relocate_citation, validate_citation
-    citation = {'page': 1, 'quote': 'A sufficiently long exact source passage.'}
+
+    citation = {"page": 1, "quote": "A sufficiently long exact source passage."}
     warnings = []
-    pages = ['Different page', citation['quote']]
+    pages = ["Different page", citation["quote"]]
     relocate_citation(citation, pages, warnings)
-    assert citation['page'] == 2 and warnings and validate_citation(citation, pages)
-    citation['quote'] = 'A fabricated claim absent from either page.'
+    assert citation["page"] == 2 and warnings and validate_citation(citation, pages)
+    citation["quote"] = "A fabricated claim absent from either page."
     assert not validate_citation(citation, pages)
 
 
 def test_related_correction_supersedes_previous_result(client):
     pid, body = prepare(client)
-    first = client.post(f'/api/papers/{pid}/approve', json=body).json()
+    first = client.post(f"/api/papers/{pid}/approve", json=body).json()
     second_id, second_body = prepare(client)
     # Fixture PDFs may be byte-identical within one clock tick, so create a distinct correction record.
     if second_id == pid:
         import uuid
+
         second_id = str(uuid.uuid4())
         with connect() as db:
-            db.execute("INSERT INTO papers(id,sha256,filename,pages,screening,extraction,decision,study_id,created) SELECT ?,?,'correction.pdf',pages,screening,extraction,'Include',study_id,created FROM papers WHERE id=?", (second_id, second_id, pid))
+            db.execute(
+                "INSERT INTO papers(id,sha256,filename,pages,screening,extraction,decision,study_id,created) SELECT ?,?,'correction.pdf',pages,screening,extraction,'Include',study_id,created FROM papers WHERE id=?",
+                (second_id, second_id, pid),
+            )
     with connect() as db:
-        db.execute('UPDATE papers SET study_id=? WHERE id=?', (first['study_id'], second_id))
-    second = client.get('/api/papers/'+second_id).json()
-    second_body['version'] = second['version']
-    second_body['outcomes'][0]['supersedes_id'] = first['results'][0]['id']
-    second_body['outcomes'][0]['note'] = 'Correction replaces the original result; automated test only.'
-    assert client.post(f'/api/papers/{second_id}/approve', json=second_body).status_code == 200
-    assert client.get('/api/papers/'+pid).json()['results'][0]['status'] == 'superseded'
+        db.execute(
+            "UPDATE papers SET study_id=? WHERE id=?", (first["study_id"], second_id)
+        )
+    second = client.get("/api/papers/" + second_id).json()
+    second_body["version"] = second["version"]
+    second_body["outcomes"][0]["supersedes_id"] = first["results"][0]["id"]
+    second_body["outcomes"][0][
+        "note"
+    ] = "Correction replaces the original result; automated test only."
+    assert (
+        client.post(f"/api/papers/{second_id}/approve", json=second_body).status_code
+        == 200
+    )
+    assert (
+        client.get("/api/papers/" + pid).json()["results"][0]["status"] == "superseded"
+    )
