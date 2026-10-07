@@ -1,4 +1,5 @@
 import React from "react";
+import { hasRecordedIssue } from "./resultIssues.js";
 import { ArrowRight, FileSearch, SlidersHorizontal } from "lucide-react";
 import { api, shown } from "./api";
 import { Busy, Notice, Status } from "./components";
@@ -40,7 +41,7 @@ export default function Library({ onReview, refresh, initialOrigin }) {
   const matches = (r) =>
     (!outcome || r.data.name === outcome) &&
     (!follow || r.data.follow_up === follow) &&
-    (!issues || r.status !== "approved");
+    (!issues || hasRecordedIssue(r));
   const studies = all.filter(
     (s) =>
       (!study || s.id === study) &&
@@ -157,17 +158,27 @@ export default function Library({ onReview, refresh, initialOrigin }) {
                 {issues ? "Show all results" : "Review data issues"}
               </button>
             </div>
+            {issues && (
+              <p className="muted">
+                Showing unapproved results and results with recorded caveats.
+                Approval does not remove a recorded caveat.
+              </p>
+            )}
             {!studies.length ? (
               <div className="empty">
                 <FileSearch size={34} />
                 <h2>
                   {all.length
-                    ? "No studies match these filters"
+                    ? issues
+                      ? "No recorded issues match these filters"
+                      : "No studies match these filters"
                     : "Your publication library starts here"}
                 </h2>
                 <p>
                   {all.length
-                    ? "Try a different study, outcome or follow-up period."
+                    ? issues
+                      ? "There are no unapproved results or recorded caveats in this selection. Choose Show all results to return to the full view."
+                      : "Try a different study, outcome or follow-up period."
                     : "Review a paper to add its study and approved results."}
                 </p>
                 <button

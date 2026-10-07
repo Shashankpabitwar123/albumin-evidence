@@ -472,15 +472,17 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                         />
                       ))}
                     </div>
-                    {edit.characteristics.evidence?.map((c, i) => (
-                      <button
-                        className="text-button"
-                        key={i}
-                        onClick={() => setCitation(c)}
-                      >
-                        View study source · page {c.page}
-                      </button>
-                    ))}
+                    <div className="study-source-links">
+                      {edit.characteristics.evidence?.map((c, i) => (
+                        <button
+                          className="text-button"
+                          key={i}
+                          onClick={() => setCitation(c)}
+                        >
+                          View study source {i + 1} · page {c.page}
+                        </button>
+                      ))}
+                    </div>
                     <h2>Selected outcomes</h2>
                     <p className="muted">
                       Blank means not captured. NR means not reported. Zero is

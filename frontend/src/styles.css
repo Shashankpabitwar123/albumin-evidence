@@ -958,3 +958,10 @@ blockquote {
 .review-notes li + li {
   margin-top: 9px;
 }
+
+.study-source-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 12px 0 24px;
+}
