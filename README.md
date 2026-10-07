@@ -38,6 +38,6 @@ The app uses React for the interface, Python/FastAPI for the workflow and SQLite
 
 **Repository:** https://github.com/Shashankpabitwar123/albumin-evidence
 
-The source ZIP includes the application code, original fictional workbook and tests. Real PDFs and hosted review records are not bundled with the code. The private repository requires access; the ZIP can be inspected without GitHub access.
+The source ZIP includes the application code, original fictional workbook and tests. Real PDFs and hosted review records are not bundled with the code. The repository is public and can be viewed without an invitation. Public viewers cannot push changes to this repository.
 
 Developer setup, local-run instructions and test commands are in [Technical notes](docs/TECHNICAL.md). Local AI analysis requires your own API key; no OpenAI key is included. The hosted website is ready to use without that setup.
