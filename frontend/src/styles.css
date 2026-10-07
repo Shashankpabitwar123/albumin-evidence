@@ -999,3 +999,8 @@ blockquote {
 .evidence-label {
   color: #525252;
 }
+
+/* Error summaries remain visible below the sticky navigation. */
+.review-error, [id^="review-"] { scroll-margin-top: 110px; }
+.error-link { display: block; background: transparent; border: 0; color: inherit; text-align: left; padding: 4px 0; text-decoration: underline; }
+.error-link:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; }

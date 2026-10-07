@@ -1,3 +1,4 @@
+import { validationIssues } from "./validation";
 export async function api(path, options = {}) {
   const headers = { "X-Requested-With": "AlbuminEvidence", ...options.headers };
   if (options.body && !(options.body instanceof FormData))
@@ -12,12 +13,14 @@ export async function api(path, options = {}) {
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
+    const issues = validationIssues(data.detail);
     const detail =
       typeof data.detail === "string"
         ? data.detail
-        : "Please check the required fields and try again.";
+        : issues.length ? issues.map((issue) => issue.message).join(" ") : "Unable to save this change. Please try again.";
     const error = new Error(detail);
     error.status = response.status;
+    error.issues = issues;
     throw error;
   }
   return data;

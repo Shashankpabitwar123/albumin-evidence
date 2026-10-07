@@ -27,6 +27,21 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
     [existingStudies, setExistingStudies] = React.useState([]);
   const [edit, setEdit] = React.useState(null),
     [confirm, setConfirm] = React.useState(false);
+  const [issues, setIssues] = React.useState([]);
+  const errorRef = React.useRef(null);
+  React.useEffect(() => {
+    if (error && errorRef.current) {
+      errorRef.current.focus({ preventScroll: true });
+      errorRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [error, busy]);
+  function goToField(field) {
+    const target = document.getElementById("review-" + field);
+    if (target) {
+      target.focus({ preventScroll: true });
+      target.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }
   const load = React.useCallback(async () => {
     const p = await api("/papers/" + paperId);
     setPaper(p);
@@ -34,6 +49,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
   }, [paperId]);
   React.useEffect(() => {
     setError("");
+    setIssues([]);
     setMessage("");
     setPaper(null);
     setCitation(null);
@@ -90,11 +106,13 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
   async function run(fn) {
     setBusy(true);
     setError("");
+    setIssues([]);
     setMessage("");
     try {
       await fn();
     } catch (e) {
       setError(e.message);
+      setIssues(e.issues || []);
     } finally {
       setBusy(false);
     }
@@ -193,7 +211,11 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
           </li>
         ))}
       </ol>
-      {error && <Notice type="error">{error}</Notice>}
+      {error && <div ref={errorRef} tabIndex={-1} className="review-error">
+        <Notice type="error">
+          {issues.length ? issues.map((issue, i) => <button key={i} className="error-link" onClick={() => goToField(issue.field)}>{issue.message}</button>) : error}
+        </Notice>
+      </div>}
       {message && <Notice type="success">{message}</Notice>}
       {!paperId ? (
         <>
@@ -371,6 +393,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                     </small>
                   </label>
                   <Field
+                    id="review-reviewer"
                     label="Reviewer name"
                     value={reviewer}
                     onChange={setReviewer}
@@ -379,6 +402,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                     maxLength={100}
                   />
                   <Field
+                    id="review-reason"
                     label="Reason for your decision"
                     value={reason}
                     onChange={setReason}
@@ -469,6 +493,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                       ].map(([k, label]) => (
                         <Field
                           key={k}
+                          id={`review-characteristics.${k}`}
                           label={label}
                           value={edit.characteristics[k]}
                           onChange={(v) =>
@@ -538,6 +563,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                           ].map(([k, label]) => (
                             <Field
                               key={k}
+                              id={`review-outcomes.${i}.data.${k}`}
                               label={label}
                               value={r.data[k]}
                               onChange={(v) =>
@@ -616,6 +642,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                           </label>
                         )}
                         <Field
+                          id={`review-outcomes.${i}.note`}
                           label="Result review note"
                           value={r.note}
                           onChange={(v) =>
@@ -632,12 +659,14 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                       </article>
                     ))}
                     <Field
-                      label="Reviewer name"
+                      id="review-reviewer"
+                    label="Reviewer name"
                       value={reviewer}
                       onChange={setReviewer}
                       required
                     />
                     <Field
+                      id="review-reason"
                       label="Review note"
                       value={edit.reason}
                       onChange={(v) => setEdit((e) => ({ ...e, reason: v }))}

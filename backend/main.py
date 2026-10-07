@@ -495,7 +495,7 @@ def approve(pid: str, body: Approval):
         if p["decision"] != "Include" or not p["extraction"]:
             raise HTTPException(409, "Confirm inclusion and prepare extraction first.")
         pages = json.loads(p["pages"])
-        for result in body.outcomes:
+        for index, result in enumerate(body.outcomes):
             data = result.data.model_dump()
             if result.status == "approved":
                 required = (
@@ -507,28 +507,17 @@ def approve(pid: str, body: Approval):
                     "analysis_population",
                     "location",
                 )
-                if any(not data.get(k) for k in required):
-                    raise HTTPException(
-                        422,
-                        "Approved results need a definition, measure, units, analysis population, follow-up and source location.",
-                    )
+                for key in required:
+                    if not (data.get(key) or "").strip():
+                        raise HTTPException(422, [{"loc": ["body", "outcomes", index, "data", key], "msg": "Required to approve this result."}])
                 if not validate_citation(data, pages):
-                    raise HTTPException(
-                        422,
-                        "The source quote must match the selected PDF page before approval.",
-                    )
-                if not data["treatment_value"] and not data["control_value"]:
-                    raise HTTPException(
-                        422,
-                        "A result with no reported values must stay pending or withheld.",
-                    )
+                    raise HTTPException(422, [{"loc": ["body", "outcomes", index, "data", "quote"], "msg": "The source quote must match the selected PDF page. Check the quote and page number."}])
+                if not (data["treatment_value"] or "").strip() and not (data["control_value"] or "").strip():
+                    raise HTTPException(422, [{"loc": ["body", "outcomes", index, "data", "treatment_value"], "msg": "Enter a reported result, or keep this outcome pending or withheld."}])
                 if data["uncertainty"] and not result.note.strip():
-                    raise HTTPException(
-                        422,
-                        "Explain how the uncertainty was handled before approving this result.",
-                    )
+                    raise HTTPException(422, [{"loc": ["body", "outcomes", index, "note"], "msg": "Explain how you handled the recorded uncertainty before approval."}])
             if result.status == "withheld" and not result.note.strip():
-                raise HTTPException(422, "Give a reason for withholding the result.")
+                raise HTTPException(422, [{"loc": ["body", "outcomes", index, "note"], "msg": "Give a reason for withholding this result."}])
         for index, result in enumerate(body.outcomes):
             prior = db.execute(
                 "SELECT status FROM outcomes WHERE id=?", (pid + ":" + str(index),)

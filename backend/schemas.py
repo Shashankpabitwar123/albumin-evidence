@@ -1,7 +1,7 @@
 """Typed AI output and reviewer input keep missingness explicit."""
 
 from typing import Literal
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 
 
 class StrictModel(BaseModel):
@@ -73,6 +73,8 @@ class Extraction(StrictModel):
 
 
 class Decision(StrictModel):
+    _trim = field_validator("reviewer", "reason", mode="before")(lambda v: v.strip() if isinstance(v, str) else v)
+
     decision: Literal["Include", "Exclude", "Needs clarification"]
     reason: str = Field(min_length=3, max_length=4000)
     reviewer: str = Field(min_length=2, max_length=100)
@@ -81,15 +83,49 @@ class Decision(StrictModel):
     linked_study_id: str | None = None
 
 
+# Server-added reference metadata is accepted only by reviewer input models.
+# AI output schemas remain separate and strict.
+class ReferenceCheck(StrictModel):
+    original_page: int | None
+    verified_page: int
+
+
+class ReviewedCitation(Citation):
+    reference_check: ReferenceCheck | None = None
+
+
+def checked_count(value):
+    if value is None or not value.strip():
+        return None
+    value = value.strip()
+    if value.upper() == "NR":
+        return "NR"
+    if not value.isascii() or not value.isdigit():
+        raise ValueError("Enter a whole number, NR for not reported, or leave blank.")
+    return value
+
+
+class ReviewedCharacteristics(Characteristics):
+    evidence: list[ReviewedCitation]
+    _counts = field_validator("treatment_n", "control_n")(checked_count)
+
+
+class ReviewedData(Outcome):
+    reference_check: ReferenceCheck | None = None
+    _counts = field_validator("treatment_n", "control_n")(checked_count)
+
+
 class ReviewedOutcome(StrictModel):
     supersedes_id: str | None = None
-    data: Outcome
+    data: ReviewedData
     status: Literal["approved", "pending", "withheld"]
     note: str = Field(max_length=4000)
 
 
 class Approval(StrictModel):
-    characteristics: Characteristics
+    _trim = field_validator("reviewer", "reason", mode="before")(lambda v: v.strip() if isinstance(v, str) else v)
+
+    characteristics: ReviewedCharacteristics
     outcomes: list[ReviewedOutcome] = Field(max_length=2)
     reviewer: str = Field(min_length=2, max_length=100)
     reason: str = Field(min_length=3, max_length=4000)

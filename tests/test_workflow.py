@@ -488,3 +488,37 @@ def test_reset_requires_all_originals(client):
         == 409
     )
     assert client.get("/api/papers/" + response.json()["id"]).status_code == 200
+
+
+def test_corrected_references_can_be_saved_and_approved(client):
+    pid, body = prepare(client)
+    meta = {"original_page": 2, "verified_page": 1}
+    body["outcomes"][0]["data"]["reference_check"] = meta
+    body["characteristics"]["evidence"] = [{"page": 1, "quote": body["outcomes"][0]["data"]["quote"], "location": "Results", "reference_check": meta}]
+    saved = client.post(f"/api/papers/{pid}/draft", json=body)
+    assert saved.status_code == 200, saved.text
+    body["version"] = saved.json()["version"]
+    approved = client.post(f"/api/papers/{pid}/approve", json=body)
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["results"][0]["data"]["reference_check"] == meta
+
+
+@pytest.mark.parametrize("path,value", [("reviewer", "  "), ("reason", "  "), ("treatment_n", "dsCDS")])
+def test_invalid_review_fields_are_identified(client, path, value):
+    pid, body = prepare(client)
+    if path == "treatment_n":
+        body["characteristics"][path] = value
+    else:
+        body[path] = value
+    response = client.post(f"/api/papers/{pid}/approve", json=body)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"][-1] == path
+    assert client.get(f"/api/papers/{pid}").json()["results"] == []
+
+
+def test_missing_source_returns_outcome_field(client):
+    pid, body = prepare(client)
+    body["outcomes"][0]["data"]["quote"] = "This passage is absent."
+    response = client.post(f"/api/papers/{pid}/approve", json=body)
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "outcomes", 0, "data", "quote"]
