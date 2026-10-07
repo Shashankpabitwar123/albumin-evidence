@@ -5,6 +5,7 @@ import json
 import os
 import re
 import sqlite3
+import shutil
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -300,6 +301,15 @@ async def upload(file: UploadFile):
                 409,
                 "The document limit has been reached. Contact the application owner.",
             )
+        used = sum(f.stat().st_size for f in config.DATA.glob("*.pdf"))
+        if (
+            used + len(payload) > 750 * 1024 * 1024
+            or shutil.disk_usage(config.DATA).free < len(payload) + 50 * 1024 * 1024
+        ):
+            raise HTTPException(
+                409,
+                "Document storage is full. Contact the workspace owner before uploading more papers.",
+            )
         path = config.DATA / (pid + ".pdf")
         path.write_bytes(payload)
         path.chmod(0o600)
@@ -350,6 +360,16 @@ def start_analysis(
             raise HTTPException(409, "Confirm inclusion before extracting results.")
         if p["screening" if task == "screen" else "extraction"]:
             return {"cached": True}
+        if (
+            db.execute("SELECT COUNT(*) FROM papers WHERE job IS NOT NULL").fetchone()[
+                0
+            ]
+            >= 2
+        ):
+            raise HTTPException(
+                409,
+                "Two papers are already being analyzed. Please try again when one finishes.",
+            )
         if not os.getenv("OPENAI_API_KEY"):
             raise HTTPException(
                 503, "Analysis is not configured. Please contact the application owner."

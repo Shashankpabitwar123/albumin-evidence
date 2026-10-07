@@ -19,7 +19,7 @@ openpyxl==3.1.5
 opentelemetry-api==1.45.1
 packaging==26.3
 pluggy==1.6.0
-pydantic==2.13.5
+pydantic @ https://files.pythonhosted.org/packages/eb/47/c95ffc2009878c7aac0c5e08528022dcb885933252a88b5f170058014464/pydantic-2.13.5-py3-none-any.whl#sha256=346a034f080da3755d8e9cb5e00e8b07de1d39e4f6e2c87d8ab7cafa0b269a73
 pydantic_core==2.46.5
 Pygments==2.21.0
 pymupdf==1.28.2

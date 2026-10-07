@@ -126,7 +126,10 @@ export function Source({ paper, citation }) {
       </label>
       {citation?.quote && (
         <blockquote>
-          <strong>{shown(citation.location)}</strong>
+          <strong>
+            {shown(citation.location)} · PDF page{" "}
+            {citation.page || "unconfirmed"}
+          </strong>
           <p>{citation.quote}</p>
         </blockquote>
       )}

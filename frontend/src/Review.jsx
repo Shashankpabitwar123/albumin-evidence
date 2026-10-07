@@ -44,7 +44,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
       .then((p) => {
         if (!active) return;
         setPaper(p);
-        setStage(p.extraction && p.decision === "Include" ? 3 : 2);
+        setStage(p.decision === "Include" ? 3 : 2);
         setDecision(
           p.decision === "Pending"
             ? p.screening?.recommendation || "Needs clarification"

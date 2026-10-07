@@ -56,7 +56,7 @@ The review includes outpatient continuation after initial hospitalization. Combi
 
 ## Limits and failure handling
 
-Searchable PDFs only, maximum 12 MB, 40 pages, 160,000 extracted characters, and 100 saved documents. Scanned, encrypted, malformed or mostly unreadable PDFs are rejected with a reason. OCR and graph digitization are not implemented. Tables and column ordering can still be misread; the original PDF is available for checking. A matching quote does not guarantee a correct interpretation. Human checking is required even when no warning appears.
+Searchable PDFs only, maximum 12 MB, 40 pages, 160,000 extracted characters, and 100 saved documents within a 750 MB upload allowance. At most two papers are analyzed concurrently. Scanned, encrypted, malformed or mostly unreadable PDFs are rejected with a reason. OCR and graph digitization are not implemented. Tables and column ordering can still be misread; the original PDF is available for checking. A matching quote does not guarantee a correct interpretation. Human checking is required even when no warning appears.
 
 API failures keep uploaded files and saved reviews. Interrupted jobs become retryable on restart. Conflicting saves return a reload instruction instead of overwriting another review. Database errors return a controlled error. The service cannot guarantee zero downtime or correct AI results.
 

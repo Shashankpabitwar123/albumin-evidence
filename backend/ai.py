@@ -163,7 +163,7 @@ def analyze(paper_id, task):
             )
         if response.output_parsed is None:
             raise ValueError(
-                "The paper could not be analyzed reliably. Please retry or review it manually."
+                "The paper could not be analyzed reliably. Please retry. Your saved paper and decisions are safe."
             )
         raw_result = response.output_parsed.model_dump()
         result = validate_output(json.loads(json.dumps(raw_result)), pages, task)
