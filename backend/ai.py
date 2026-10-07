@@ -48,6 +48,7 @@ def relocate_citation(citation, pages, warnings):
     if len(matches) == 1:
         previous = citation.get("page")
         citation["page"] = matches[0]
+        citation["reference_check"] = {"original_page": previous, "verified_page": matches[0]}
         warnings.append(
             f"An exact source passage was located on PDF page {matches[0]} (AI proposed page {previous})."
         )

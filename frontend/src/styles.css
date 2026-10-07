@@ -978,3 +978,24 @@ blockquote {
   gap: 12px;
   margin-top: 20px;
 }
+
+.screening-label {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--burgundy, #60031a);
+}
+.clickable-quote {
+  cursor: pointer;
+}
+.clickable-quote:hover,
+.clickable-quote:focus-visible {
+  outline: 2px solid #2f7889;
+  outline-offset: 3px;
+}
+.page-text mark {
+  background: #ffe49a;
+  color: #242424;
+}
+.evidence-label {
+  color: #525252;
+}

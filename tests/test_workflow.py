@@ -271,6 +271,7 @@ def test_exact_quote_page_relocation():
     pages = ["Different page", citation["quote"]]
     relocate_citation(citation, pages, warnings)
     assert citation["page"] == 2 and warnings and validate_citation(citation, pages)
+    assert citation["reference_check"] == {"original_page": 1, "verified_page": 2}
     citation["quote"] = "A fabricated claim absent from either page."
     assert not validate_citation(citation, pages)
 

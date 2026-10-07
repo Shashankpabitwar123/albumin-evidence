@@ -1,4 +1,5 @@
 import React from "react";
+import { isReferenceCorrection } from "./sourceMatch";
 import {
   Upload,
   FileText,
@@ -35,6 +36,7 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
     setError("");
     setMessage("");
     setPaper(null);
+    setCitation(null);
     setConfirm(false);
     if (!paperId) {
       setStage(1);
@@ -264,8 +266,8 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
             ) : (
               <div className="review-grid">
                 <section className="review-panel">
-                  <span className="muted small">
-                    AI screening suggestion · reviewer confirmation required
+                  <span className="screening-label">
+                    Suggested decision · your review required
                   </span>
                   <h2
                     className={
@@ -276,18 +278,22 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                     {screen.recommendation}
                   </h2>
                   <p>{screen.reason}</p>
-                  {screen.warnings.map((w, i) => (
-                    <Notice key={i} type="warning">
-                      {w}
-                    </Notice>
-                  ))}
+                  {screen.warnings
+                    .filter((w) => !isReferenceCorrection(w))
+                    .map((w, i) => (
+                      <Notice key={i} type="warning">
+                        {w}
+                      </Notice>
+                    ))}
                   <h3>Criteria review</h3>
                   <div className="criteria">
                     {screen.criteria.map((c, i) => (
                       <button
                         className="criterion"
                         key={i}
-                        onClick={() => setCitation(c.evidence)}
+                        onClick={() =>
+                          setCitation({ ...c.evidence, criterion: c.name })
+                        }
                       >
                         <div>
                           <strong>{c.name}</strong>
@@ -345,13 +351,13 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                     </select>
                   </label>
                   <label className="field">
-                    <span>Study record</span>
+                    <span>Which study does this paper belong to?</span>
                     <select
                       value={link}
                       disabled={!!paper.study_id}
                       onChange={(e) => setLink(e.target.value)}
                     >
-                      <option value="">Create a new study if included</option>
+                      <option value="">New study</option>
                       {existingStudies.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.title}
@@ -359,8 +365,9 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                       ))}
                     </select>
                     <small>
-                      For a related report or correction, select its existing
-                      study before saving inclusion.
+                      {paper.study_id
+                        ? "This paper is already linked to a study. The link cannot be changed here."
+                        : "If this paper updates or corrects a study already in your library, select that study. Otherwise, leave ‘New study’ selected."}
                     </small>
                   </label>
                   <Field
@@ -391,9 +398,19 @@ export default function Review({ paperId, onOpen, onLibrary, onChange }) {
                 </section>
                 <Source
                   paper={paper}
+                  referenceWarnings={screen.warnings.filter(
+                    isReferenceCorrection,
+                  )}
                   citation={
                     citation ||
-                    screen.criteria.find((c) => c.evidence?.quote)?.evidence
+                    (() => {
+                      const first = screen.criteria.find(
+                        (c) => c.evidence?.quote,
+                      );
+                      return first
+                        ? { ...first.evidence, criterion: first.name }
+                        : null;
+                    })()
                   }
                 />
               </div>
